@@ -1,0 +1,9 @@
+---
+status_url: "https://<PATCHING_HOST>:9999/status"
+update_categories:
+  - SecurityUpdates
+  - CriticalUpdates
+  - UpdateRollups
+  - DefinitionUpdates
+  - Updates
+ansible_password: "{{ lookup('pipe', 'python3 ansible/vault_password.py') }}"

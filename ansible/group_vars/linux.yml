@@ -1,0 +1,4 @@
+---
+status_url: "https://<PATCHING_HOST>:9999/status"
+reboot_if_needed: true
+exclude_file: "/etc/patching/exclude-packages.txt"

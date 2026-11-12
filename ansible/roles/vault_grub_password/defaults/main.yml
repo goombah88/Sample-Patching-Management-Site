@@ -1,0 +1,14 @@
+---
+# Injected automatically by AWX when a credential is linked to the job template.
+# Override here only if running outside AWX.
+vault_addr: "{{ lookup('env', 'VAULT_ADDR') }}"
+vault_username: "{{ lookup('env', 'VAULT_USERNAME') }}"
+vault_password: "{{ lookup('env', 'VAULT_PASSWORD') }}"
+
+# KV v2 secret location
+vault_grub_mount: "secret"
+vault_grub_secret_path: "base-images/ubuntu/grub"
+vault_grub_password_key: "password"
+
+# Name of the fact exposed to subsequent plays/roles
+vault_grub_fact_name: "grub_password"

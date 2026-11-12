@@ -1,0 +1,23 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+**/.git/
+
+# Runtime data and exports may contain real infrastructure identifiers.
+patching.db*
+patching.env
+*.log
+cis_verify_logs/
+server_facts*.csv
+vcenter_servers_by_cluster.csv
+vcenter_servers_by_cluster.xlsx
+os_family_pie.png
+os_version_pie.png
+
+# Local editor and environment configuration.
+.vscode/
+.env
+.env.*
+!.env.example
+.api_variables_env

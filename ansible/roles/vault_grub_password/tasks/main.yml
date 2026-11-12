@@ -1,0 +1,99 @@
+---
+# ---------------------------------------------------------------------------
+# Validate AWX-injected Vault credentials
+# AWX injects VAULT_ADDR, VAULT_USERNAME, and VAULT_PASSWORD from the
+# credential linked to the job template.
+# ---------------------------------------------------------------------------
+- name: Assert Vault address is set
+  ansible.builtin.assert:
+    that:
+      - vault_addr | length > 0
+    fail_msg: >-
+      vault_addr is empty. Link a credential to the AWX job template that
+      injects VAULT_ADDR, or set the environment variable directly.
+
+- name: Assert Vault username is set
+  ansible.builtin.assert:
+    that:
+      - vault_username | length > 0
+    fail_msg: >-
+      vault_username is empty. Link a credential to the AWX job template that
+      injects VAULT_USERNAME, or set the environment variable directly.
+
+- name: Assert Vault password is set
+  ansible.builtin.assert:
+    that:
+      - vault_password | length > 0
+    fail_msg: >-
+      vault_password is empty. Link a credential to the AWX job template that
+      injects VAULT_PASSWORD, or set the environment variable directly.
+
+# ---------------------------------------------------------------------------
+# Read the KV v2 secret (userpass auth — no separate login step required)
+# ---------------------------------------------------------------------------
+- name: Read grub password from Vault
+  community.hashi_vault.vault_kv2_get:
+    url: "{{ vault_addr }}"
+    auth_method: userpass
+    username: "{{ vault_username }}"
+    password: "{{ vault_password }}"
+    engine_mount_point: "{{ vault_grub_mount }}"
+    path: "{{ vault_grub_secret_path }}"
+  register: _vault_grub_secret
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Verify the expected key exists in the secret
+  ansible.builtin.assert:
+    that:
+      - vault_grub_password_key in _vault_grub_secret.secret
+    fail_msg: >-
+      Key '{{ vault_grub_password_key }}' not found in Vault secret at
+      {{ vault_grub_mount }}/{{ vault_grub_secret_path }}.
+      Available keys: {{ _vault_grub_secret.secret.keys() | list | join(', ') }}
+
+# ---------------------------------------------------------------------------
+# Expose result as a host fact
+# ---------------------------------------------------------------------------
+- name: Set grub password fact
+  ansible.builtin.set_fact:
+    "{{ vault_grub_fact_name }}": "{{ _vault_grub_secret.secret[vault_grub_password_key] }}"
+  no_log: true
+
+- name: Confirm secret was retrieved
+  ansible.builtin.debug:
+    msg: >-
+      Vault secret retrieved from {{ vault_grub_mount }}/{{ vault_grub_secret_path }}.
+      Fact '{{ vault_grub_fact_name }}' is set.
+
+- name: Generate grub pbkdf2 password hash
+  expect:
+    command: grub-mkpasswd-pbkdf2
+    responses:
+      'Enter password:': "{{ vault_grub_fact_name }}"
+      'Reenter password:': "{{ vault_grub_fact_name }}"
+  register: grub_hash_output
+
+- name: Extract grub pbkdf2 hash from command output
+  ansible.builtin.set_fact:
+    grub_pbkdf2_hash: "{{ grub_hash_output.stdout | regex_search('(grub\\.pbkdf2\\.\\S+)', '\\1') | first }}"
+  no_log: true
+
+- name: Insert superusers line after exec in /etc/grub.d/40_custom
+  ansible.builtin.lineinfile:
+    path: /etc/grub.d/40_custom
+    insertafter: '^exec'
+    line: 'set superusers="boot"'
+    create: true
+
+- name: Insert password hash line after superusers line in /etc/grub.d/40_custom
+  ansible.builtin.lineinfile:
+    path: /etc/grub.d/40_custom
+    insertafter: '^set superusers='
+    line: "password_pbkdf2 boot {{ grub_pbkdf2_hash }}"
+    create: true
+  no_log: true
+
+- name: Update grub configuration
+  ansible.builtin.command: update-grub

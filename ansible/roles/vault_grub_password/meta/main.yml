@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: vault_grub_password
+  author: ops
+  description: >
+    Authenticates to HashiCorp Vault and retrieves the grub password stored at
+    the configured mount and secret path.
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+
+dependencies: []
